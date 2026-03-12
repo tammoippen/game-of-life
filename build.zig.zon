@@ -1,0 +1,20 @@
+.{
+    .name = .game_of_life,
+    .version = "0.0.1",
+    .fingerprint = 0x2937c9e2fb25dc3f, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .zli = .{
+            .url = "https://github.com/xcaeser/zli/archive/v4.3.0.tar.gz",
+            .hash = "zli-4.3.0-LeUjpmbfAACPnRj2nzbzaLMNfTkq-LEWSC9EfOcnFxjl",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        // For example...
+        //"LICENSE",
+        //"README.md",
+    },
+}
