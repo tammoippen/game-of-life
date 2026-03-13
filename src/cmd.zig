@@ -25,6 +25,13 @@ const width_flag = zli.Flag{
     .type = .Int,
     .default_value = .{ .Int = 80 },
 };
+const sleep_flag = zli.Flag{
+    .name = "sleep",
+    .shortcut = null,
+    .description = "Sleep between steps [ms]",
+    .type = .Int,
+    .default_value = .{ .Int = 200 },
+};
 const alive_flag = zli.Flag{
     .name = "alive",
     .shortcut = null,
@@ -43,6 +50,7 @@ pub fn build(writer: *Writer, reader: *Reader, allocator: std.mem.Allocator) !*z
     try cmd.addFlag(version_flag);
     try cmd.addFlag(height_flag);
     try cmd.addFlag(width_flag);
+    try cmd.addFlag(sleep_flag);
     try cmd.addFlag(alive_flag);
 
     return cmd;
@@ -71,6 +79,7 @@ fn run(ctx: zli.CommandContext) !void {
         try ctx.root.printHelp();
         std.process.exit(1);
     }
+    const sleep = ctx.flag("sleep", u64);
     const alive_str = ctx.flag("alive", []const u8);
     const alive = std.fmt.parseFloat(f64, alive_str) catch {
         try ctx.writer.print("Error parsing alive ({s}) to float.\n\n", .{alive_str});
@@ -83,6 +92,6 @@ fn run(ctx: zli.CommandContext) !void {
         try ctx.writer.writeAll("\x1Bc");
         try ctx.writer.print("{f}\n\nStep: {d}", .{ sim, sim.step });
         sim.doStep();
-        std.Thread.sleep(std.time.ns_per_s);
+        std.Thread.sleep(1000000 * sleep);
     }
 }

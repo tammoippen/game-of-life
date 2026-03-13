@@ -19,7 +19,7 @@ const characters = [16][]const u8{
     "▌", // 0b1010: ALIVE DEAD  ALIVE DEAD
     "▙", // 0b1011: ALIVE DEAD  ALIVE ALIVE
     "▀", // 0b1100: ALIVE ALIVE DEAD  DEAD
-    "▛", // 0b1101: ALIVE ALIVE DEAD  ALIVE
+    "▜", // 0b1101: ALIVE ALIVE DEAD  ALIVE
     "▛", // 0b1110: ALIVE ALIVE ALIVE DEAD
     "█", // 0b1111: ALIVE ALIVE ALIVE ALIVE
 };
@@ -63,6 +63,7 @@ pub fn init(allocator: std.mem.Allocator, height: u32, width: u32, alive_factor:
 
 pub fn deinit(self: Sim, allocator: std.mem.Allocator) void {
     allocator.free(self.world);
+    allocator.free(self.future_world);
 }
 
 pub fn format(self: Sim, writer: anytype) !void {
@@ -92,7 +93,7 @@ fn set(self: Sim, row: i32, col: i32, value: u1) void {
     self.future_world[@as(u32, @intCast(row)) * self.width + @as(u32, @intCast(col))] = value;
 }
 
-fn neighbors(self: Sim, row: i32, col: i32) [9]u1 {
+fn neighborhood(self: Sim, row: i32, col: i32) [9]u1 {
     return .{
         self.get(row - 1, col - 1),
         self.get(row - 1, col),
@@ -111,7 +112,7 @@ pub fn doStep(self: *Sim) void {
     while (row < self.height) : (row += 1) {
         var col: i32 = 0;
         while (col < self.width) : (col += 1) {
-            const ns = self.neighbors(row, col);
+            const ns = self.neighborhood(row, col);
             const center = ns[4];
 
             var sum: u32 = 0;
@@ -145,8 +146,8 @@ test "neighbors at edge" {
 
     var sim = try Sim.init(alloc, 10, 10, 0.0);
     defer sim.deinit(alloc);
-    try expectEqualSlices(u1, &sim.neighbors(0, 0), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
-    try expectEqualSlices(u1, &sim.neighbors(9, 0), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
-    try expectEqualSlices(u1, &sim.neighbors(0, 9), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
-    try expectEqualSlices(u1, &sim.neighbors(9, 9), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+    try expectEqualSlices(u1, &sim.neighborhood(0, 0), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+    try expectEqualSlices(u1, &sim.neighborhood(9, 0), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+    try expectEqualSlices(u1, &sim.neighborhood(0, 9), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+    try expectEqualSlices(u1, &sim.neighborhood(9, 9), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
 }
