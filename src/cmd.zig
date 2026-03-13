@@ -44,7 +44,7 @@ pub fn build(writer: *Writer, reader: *Reader, allocator: std.mem.Allocator) !*z
     const cmd = try zli.Command.init(writer, reader, allocator, .{
         .name = "game-of-life",
         .description = "Conway's Game of Life",
-        .version = .{ .major = 0, .minor = 0, .patch = 1, .pre = null, .build = null },
+        .version = .{ .major = 1, .minor = 0, .patch = 0, .pre = null, .build = null },
     }, run);
 
     try cmd.addFlag(version_flag);
