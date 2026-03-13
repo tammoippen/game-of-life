@@ -1,3 +1,5 @@
+[![Test](https://github.com/tammoippen/game-of-life/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/tammoippen/game-of-life/actions/workflows/test.yml)
+
 # Game of Life
 
 A terminal-based implementation of [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) written in Zig.

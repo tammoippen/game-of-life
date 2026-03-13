@@ -155,7 +155,7 @@ test "neighbors at edge" {
 }
 
 test "getCharacter - all 16 combinations" {
-    try expectEqualStrings(" ",  getCharacter(0, 0, 0, 0));
+    try expectEqualStrings(" ", getCharacter(0, 0, 0, 0));
     try expectEqualStrings("▗", getCharacter(0, 0, 0, 1));
     try expectEqualStrings("▖", getCharacter(0, 0, 1, 0));
     try expectEqualStrings("▄", getCharacter(0, 0, 1, 1));
@@ -228,9 +228,11 @@ test "neighborhood - interior cell" {
     // 1 0 1
     var sim = try Sim.init(alloc, 3, 3, 0.0);
     defer sim.deinit(alloc);
-    sim.world[0] = 1; sim.world[2] = 1;
+    sim.world[0] = 1;
+    sim.world[2] = 1;
     sim.world[4] = 1;
-    sim.world[6] = 1; sim.world[8] = 1;
+    sim.world[6] = 1;
+    sim.world[8] = 1;
 
     // Center (1,1): all 8 neighbors are the known values above
     try expectEqualSlices(u1, &sim.neighborhood(1, 1), &[_]u1{ 1, 0, 1, 0, 1, 0, 1, 0, 1 });
