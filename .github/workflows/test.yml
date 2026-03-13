@@ -22,4 +22,4 @@ jobs:
         run: zig fmt --check build.zig src/
 
       - name: Run tests
-        run: zig build test
+        run: zig build test --summary all
