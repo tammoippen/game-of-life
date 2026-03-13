@@ -1,6 +1,8 @@
 const Sim = @This();
 const std = @import("std");
 const expectEqualSlices = std.testing.expectEqualSlices;
+const expectEqual = std.testing.expectEqual;
+const expectEqualStrings = std.testing.expectEqualStrings;
 
 const ALIVE: u1 = 1;
 const DEAD: u1 = 0;
@@ -150,4 +152,260 @@ test "neighbors at edge" {
     try expectEqualSlices(u1, &sim.neighborhood(9, 0), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
     try expectEqualSlices(u1, &sim.neighborhood(0, 9), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
     try expectEqualSlices(u1, &sim.neighborhood(9, 9), &[_]u1{ 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+}
+
+test "getCharacter - all 16 combinations" {
+    try expectEqualStrings(" ",  getCharacter(0, 0, 0, 0));
+    try expectEqualStrings("▗", getCharacter(0, 0, 0, 1));
+    try expectEqualStrings("▖", getCharacter(0, 0, 1, 0));
+    try expectEqualStrings("▄", getCharacter(0, 0, 1, 1));
+    try expectEqualStrings("▝", getCharacter(0, 1, 0, 0));
+    try expectEqualStrings("▐", getCharacter(0, 1, 0, 1));
+    try expectEqualStrings("▞", getCharacter(0, 1, 1, 0));
+    try expectEqualStrings("▟", getCharacter(0, 1, 1, 1));
+    try expectEqualStrings("▘", getCharacter(1, 0, 0, 0));
+    try expectEqualStrings("▚", getCharacter(1, 0, 0, 1));
+    try expectEqualStrings("▌", getCharacter(1, 0, 1, 0));
+    try expectEqualStrings("▙", getCharacter(1, 0, 1, 1));
+    try expectEqualStrings("▀", getCharacter(1, 1, 0, 0));
+    try expectEqualStrings("▜", getCharacter(1, 1, 0, 1));
+    try expectEqualStrings("▛", getCharacter(1, 1, 1, 0));
+    try expectEqualStrings("█", getCharacter(1, 1, 1, 1));
+}
+
+test "init - all dead when alive_factor=0" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    var sim = try Sim.init(alloc, 4, 6, 0.0);
+    defer sim.deinit(alloc);
+
+    try expectEqual(@as(u32, 4), sim.height);
+    try expectEqual(@as(u32, 6), sim.width);
+    try expectEqual(@as(u32, 0), sim.step);
+    for (sim.world) |cell| try expectEqual(DEAD, cell);
+}
+
+test "init - all alive when alive_factor=1" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    var sim = try Sim.init(alloc, 4, 6, 1.0);
+    defer sim.deinit(alloc);
+
+    for (sim.world) |cell| try expectEqual(ALIVE, cell);
+}
+
+test "get - out of bounds returns dead" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    // Grid is all alive so any in-bounds cell would return ALIVE
+    const sim = try Sim.init(alloc, 4, 4, 1.0);
+    defer sim.deinit(alloc);
+
+    try expectEqual(DEAD, sim.get(-1, 0));
+    try expectEqual(DEAD, sim.get(0, -1));
+    try expectEqual(DEAD, sim.get(4, 0));
+    try expectEqual(DEAD, sim.get(0, 4));
+    try expectEqual(DEAD, sim.get(-1, -1));
+    try expectEqual(DEAD, sim.get(100, 100));
+    // In-bounds cell returns ALIVE confirming the OOB path is distinct
+    try expectEqual(ALIVE, sim.get(0, 0));
+}
+
+test "neighborhood - interior cell" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    // 3x3 checkerboard, alive at corners and center:
+    // 1 0 1
+    // 0 1 0
+    // 1 0 1
+    var sim = try Sim.init(alloc, 3, 3, 0.0);
+    defer sim.deinit(alloc);
+    sim.world[0] = 1; sim.world[2] = 1;
+    sim.world[4] = 1;
+    sim.world[6] = 1; sim.world[8] = 1;
+
+    // Center (1,1): all 8 neighbors are the known values above
+    try expectEqualSlices(u1, &sim.neighborhood(1, 1), &[_]u1{ 1, 0, 1, 0, 1, 0, 1, 0, 1 });
+    // Corner (0,0): top/left are OOB (0), right/bottom neighbors are (0,1)=0 and (1,1)=1 and (1,0)=0... wait:
+    // tl=OOB, t=OOB, tr=OOB, l=OOB, c=(0,0)=1, r=(0,1)=0, bl=OOB, b=(1,0)=0, br=(1,1)=1
+    try expectEqualSlices(u1, &sim.neighborhood(0, 0), &[_]u1{ 0, 0, 0, 0, 1, 0, 0, 0, 1 });
+}
+
+test "doStep - underpopulation: isolated cell dies, step increments" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    var sim = try Sim.init(alloc, 5, 5, 0.0);
+    defer sim.deinit(alloc);
+    sim.world[2 * 5 + 2] = ALIVE; // single cell at center
+
+    sim.doStep();
+
+    for (sim.world) |cell| try expectEqual(DEAD, cell);
+    try expectEqual(@as(u32, 1), sim.step);
+}
+
+test "doStep - overpopulation: cell with 4 neighbors dies" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    // 5x5 plus/cross pattern:
+    // . . . . .
+    // . . X . .
+    // . X X X .
+    // . . X . .
+    // . . . . .
+    // Center (2,2) has 4 live orthogonal neighbors → dies
+    var sim = try Sim.init(alloc, 5, 5, 0.0);
+    defer sim.deinit(alloc);
+    sim.world[1 * 5 + 2] = ALIVE;
+    sim.world[2 * 5 + 1] = ALIVE;
+    sim.world[2 * 5 + 2] = ALIVE;
+    sim.world[2 * 5 + 3] = ALIVE;
+    sim.world[3 * 5 + 2] = ALIVE;
+
+    sim.doStep();
+
+    try expectEqual(DEAD, sim.world[2 * 5 + 2]);
+}
+
+test "doStep - block is a still life" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    // 4x4 grid, 2x2 block:
+    // . . . .
+    // . X X .   each live cell has exactly 3 live neighbors → survives
+    // . X X .   dead border cells have at most 2 live neighbors → stay dead
+    // . . . .
+    var sim = try Sim.init(alloc, 4, 4, 0.0);
+    defer sim.deinit(alloc);
+    sim.world[1 * 4 + 1] = ALIVE;
+    sim.world[1 * 4 + 2] = ALIVE;
+    sim.world[2 * 4 + 1] = ALIVE;
+    sim.world[2 * 4 + 2] = ALIVE;
+
+    const expected = [_]u1{
+        0, 0, 0, 0,
+        0, 1, 1, 0,
+        0, 1, 1, 0,
+        0, 0, 0, 0,
+    };
+
+    sim.doStep();
+    try expectEqualSlices(u1, &expected, sim.world);
+
+    sim.doStep();
+    try expectEqualSlices(u1, &expected, sim.world);
+}
+
+test "doStep - blinker oscillator (period 2)" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    // 5x5 grid, horizontal blinker at row 2:
+    // . . . . .
+    // . . . . .
+    // . X X X .   (2,1),(2,2),(2,3) alive
+    // . . . . .
+    // . . . . .
+    var sim = try Sim.init(alloc, 5, 5, 0.0);
+    defer sim.deinit(alloc);
+    sim.world[2 * 5 + 1] = ALIVE;
+    sim.world[2 * 5 + 2] = ALIVE;
+    sim.world[2 * 5 + 3] = ALIVE;
+
+    const horizontal = [_]u1{
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+        0, 1, 1, 1, 0,
+        0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0,
+    };
+    // After one step: vertical blinker at col 2
+    // (2,1) and (2,3) each have 1 neighbor → die (underpopulation)
+    // (2,2) has 2 neighbors → survives (sum==2, stay the same)
+    // (1,2) and (3,2) each have 3 neighbors → born (reproduction)
+    const vertical = [_]u1{
+        0, 0, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 1, 0, 0,
+        0, 0, 0, 0, 0,
+    };
+
+    sim.doStep();
+    try expectEqualSlices(u1, &vertical, sim.world);
+
+    sim.doStep();
+    try expectEqualSlices(u1, &horizontal, sim.world);
+}
+
+test "format - all dead 2x2" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    var sim = try Sim.init(alloc, 2, 2, 0.0);
+    defer sim.deinit(alloc);
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(alloc);
+
+    try sim.format(buf.writer(alloc));
+    try expectEqualStrings(" \n\n", buf.items);
+}
+
+test "format - all alive 2x2" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    var sim = try Sim.init(alloc, 2, 2, 1.0);
+    defer sim.deinit(alloc);
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(alloc);
+
+    try sim.format(buf.writer(alloc));
+    try expectEqualStrings("█\n\n", buf.items);
+}
+
+test "format - mixed 4x4" {
+    var dbg = std.heap.DebugAllocator(.{}).init;
+    defer std.debug.assert(dbg.deinit() == .ok);
+    const alloc = dbg.allocator();
+
+    // X . . X
+    // . . . .
+    // . . . .
+    // X . . X
+    var sim = try Sim.init(alloc, 4, 4, 0.0);
+    defer sim.deinit(alloc);
+    sim.world[0 * 4 + 0] = ALIVE;
+    sim.world[0 * 4 + 3] = ALIVE;
+    sim.world[3 * 4 + 0] = ALIVE;
+    sim.world[3 * 4 + 3] = ALIVE;
+
+    var buf = std.ArrayList(u8){};
+    defer buf.deinit(alloc);
+
+    try sim.format(buf.writer(alloc));
+    // Row pair 0-1, col pair 0-1: tl=1 tr=0 bl=0 br=0 → "▘"
+    // Row pair 0-1, col pair 2-3: tl=0 tr=1 bl=0 br=0 → "▝"
+    // Row pair 2-3, col pair 0-1: tl=0 tr=0 bl=1 br=0 → "▖"
+    // Row pair 2-3, col pair 2-3: tl=0 tr=0 bl=0 br=1 → "▗"
+    try expectEqualStrings("▘▝\n▖▗\n\n", buf.items);
 }
