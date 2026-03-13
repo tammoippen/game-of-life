@@ -1,6 +1,11 @@
 const std = @import("std");
 const fs = std.fs;
 const cli = @import("cmd.zig");
+const sim = @import("sim.zig");
+
+comptime {
+    _ = sim;
+}
 
 pub fn main() !void {
     var dbg = std.heap.DebugAllocator(.{}).init;

@@ -77,14 +77,12 @@ fn run(ctx: zli.CommandContext) !void {
         try ctx.root.printHelp();
         std.process.exit(1);
     };
-    for (0..5) |_| {
+    var sim = try Sim.init(ctx.allocator, @intCast(height), @intCast(width), alive);
+    defer sim.deinit(ctx.allocator);
+    while (true) {
         try ctx.writer.writeAll("\x1Bc");
-
-        const sim = try Sim.init(ctx.allocator, @intCast(height), @intCast(width), alive);
-        defer sim.deinit(ctx.allocator);
-
-        try ctx.writer.print("{f}", .{sim});
-
+        try ctx.writer.print("{f}\n\nStep: {d}", .{ sim, sim.step });
+        sim.doStep();
         std.Thread.sleep(std.time.ns_per_s);
     }
 }
