@@ -69,23 +69,24 @@ fn run(ctx: zli.CommandContext) !void {
     }
     const height = ctx.flag("height", i32);
     if (height <= 0 or @mod(height, 2) != 0) {
-        try ctx.writer.print("Error: height ({d}) has to be greater 0 and even.\n\n", .{height});
-        try ctx.root.printHelp();
+        try ctx.writer.print("Invalid value for flag --height: {d}\nHas to be greater 0 and even.\n\nRun: 'game-of-life --help'\n", .{height});
         std.process.exit(1);
     }
     const width = ctx.flag("width", i32);
     if (width <= 0 or @mod(width, 2) != 0) {
-        try ctx.writer.print("Error: width ({d}) has to be greater 0 and even.\n\n", .{width});
-        try ctx.root.printHelp();
+        try ctx.writer.print("Invalid value for flag --width: {d}\nHas to be greater 0 and even.\n\nRun: 'game-of-life --help'\n", .{width});
         std.process.exit(1);
     }
     const sleep = ctx.flag("sleep", u64);
     const alive_str = ctx.flag("alive", []const u8);
     const alive = std.fmt.parseFloat(f64, alive_str) catch {
-        try ctx.writer.print("Error parsing alive ({s}) to float.\n\n", .{alive_str});
-        try ctx.root.printHelp();
+        try ctx.writer.print("Invalid value for flag --alive: {s}\nExcpect a value of type: Float\n\nRun: 'game-of-life --help'\n", .{alive_str});
         std.process.exit(1);
     };
+    if (alive < 0.0 or alive > 1.0) {
+        try ctx.writer.print("Invalid value for flag --alive: {d}\nHas to be in the range [0.0, 1.0].\n\nRun: 'game-of-life --help'\n", .{alive});
+        std.process.exit(1);
+    }
     var sim = try Sim.init(ctx.allocator, @intCast(height), @intCast(width), alive);
     defer sim.deinit(ctx.allocator);
     while (true) {
